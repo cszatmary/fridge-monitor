@@ -1,0 +1,6 @@
+<h1>Fridges</h1>
+<ul>
+  {{range .Fridges}}
+    <li><a href="/fridges/{{ .ID }}">{{.Name}}</a></li>
+  {{end}}
+</ul>

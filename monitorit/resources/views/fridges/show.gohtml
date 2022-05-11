@@ -1,0 +1,7 @@
+<h1>{{ .Name }}</h1>
+<h2>Last 5 Temperatures</h2>
+<ul>
+  {{range .Temperatures}}
+    <li>{{ .Value }}°C - {{ .CreatedAt }}</li>
+  {{end}}
+</ul>
