@@ -93,6 +93,29 @@ func (fh *FridgeHandler) Get(ctx context.Context, c *fiber.Ctx) (any, error) {
 	return body, nil
 }
 
+func (fh *FridgeHandler) Create(ctx context.Context, c *fiber.Ctx) (any, error) {
+	var reqBody fridgeResponse
+	if err := c.BodyParser(&reqBody); err != nil {
+		return nil, err
+	}
+	f, err := fh.fm.InsertOne(ctx, models.Fridge{
+		Name:        reqBody.Name,
+		Description: reqBody.Description,
+		MinTemp:     reqBody.MinTemp,
+		MaxTemp:     reqBody.MaxTemp,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return fridgeResponse{
+		ID:          strconv.FormatInt(f.ID, 10),
+		Name:        f.Name,
+		Description: f.Description,
+		MinTemp:     f.MinTemp,
+		MaxTemp:     f.MaxTemp,
+	}, nil
+}
+
 func (fh *FridgeHandler) CreateTemperature(ctx context.Context, c *fiber.Ctx) (any, error) {
 	fridgeID, err := paramInt64(c, "fridgeID")
 	if err != nil {

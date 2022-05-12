@@ -98,3 +98,34 @@ func (fm *FridgeManager) FindOneByID(ctx context.Context, id int64) (Fridge, err
 	}
 	return f, nil
 }
+
+func (fm *FridgeManager) InsertOne(ctx context.Context, fridge Fridge) (Fridge, error) {
+	const op = apierror.Op("models.FridgeManager.InsertOne")
+	var newFridge Fridge
+	err := requireTxn(ctx).
+		QueryRowContext(
+			ctx,
+			`INSERT INTO fridges(name, description, min_temp, max_temp) VALUES(?, ?, ?, ?)
+				RETURNING id, name, description, min_temp, max_temp`,
+			fridge.Name,
+			fridge.Description,
+			fridge.MinTemp,
+			fridge.MaxTemp,
+		).
+		Scan(
+			&newFridge.ID,
+			&newFridge.Name,
+			&newFridge.Description,
+			&newFridge.MinTemp,
+			&newFridge.MaxTemp,
+		)
+	if err != nil {
+		return newFridge, apierror.Wrap(
+			err,
+			apierror.CodeDatabase,
+			"failed to insert fridge row",
+			op,
+		)
+	}
+	return newFridge, nil
+}

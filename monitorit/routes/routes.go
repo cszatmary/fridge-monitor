@@ -87,6 +87,7 @@ func SetupApp(db *sql.DB) *fiber.App {
 	})
 	app.Get("/fridges", createHandler("fridges/index", fh.List))
 	app.Get("/fridges/:fridgeID", createHandler("fridges/show", fh.Get))
+	app.Post("/fridges", createHandler("", withTransaction(db, fh.Create)))
 	app.Post("/fridges/:fridgeID/temperatures", createHandler("", withTransaction(db, fh.CreateTemperature)))
 	return app
 }
