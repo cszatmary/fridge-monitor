@@ -14,6 +14,23 @@ type Temperature struct {
 	CreatedAt Time
 }
 
+const (
+	StatusNormal  = "normal"
+	StatusTooLow  = "tooLow"
+	StatusTooHigh = "tooHigh"
+)
+
+func (t Temperature) Status(minTemp, maxTemp float64) string {
+	switch {
+	case t.Value < minTemp:
+		return StatusTooLow
+	case t.Value > maxTemp:
+		return StatusTooHigh
+	default:
+		return StatusNormal
+	}
+}
+
 type TemperatureManager struct {
 	db *sql.DB
 }

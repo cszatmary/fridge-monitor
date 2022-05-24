@@ -1,7 +1,24 @@
-<h1>{{ .Name }}</h1>
+<h1>{{.Name}}</h1>
 <h2>Last 5 Temperatures</h2>
-<ul>
+<table class="styled-table">
+  <tr>
+    <th>Temperature</th>
+    <th>Time</th>
+    <th>Status</th>
+  </tr>
   {{range .Temperatures}}
-    <li>{{ .Value }}°C - {{ .CreatedAt }}</li>
+    <tr>
+      <td>{{.Value}}°C</td>
+      <td>{{.CreatedAt}}</td>
+      <td>
+        {{if eq .Status "tooLow"}}
+          <span class="too-low">Too Low</span>
+        {{else if eq .Status "tooHigh"}}
+          <span class="too-high">Too High</span>
+        {{else}}
+          <span class="normal">Normal</span>
+        {{end}}
+      </td>
+    </tr>
   {{end}}
-</ul>
+</table>

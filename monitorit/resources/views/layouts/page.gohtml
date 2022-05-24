@@ -2,6 +2,50 @@
 <html lang="en">
   <head>
     <title>MonitorIt</title>
+    <style type="text/css">
+      body{
+        margin: 40px auto;
+        max-width: 650px;
+        line-height: 1.6;
+        font-size: 18px;
+        color: #444;
+        padding:0 10px;
+        font-family: sans-serif;
+      }
+      h1, h2, h3 {
+        line-height: 1.2;
+      }
+      .styled-table {
+        border-collapse: collapse;
+        margin: 25px 0;
+        font-size: 0.9em;
+        min-width: 400px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+      }
+      .styled-table thead tr {
+        background-color: #009879;
+        color: #ffffff;
+        text-align: left;
+      }
+      .styled-table th, .styled-table td {
+        padding: 12px 15px;
+      }
+      .styled-table tbody tr {
+        border-bottom: 1px solid #dddddd;
+      }
+      .styled-table tbody tr:nth-of-type(even) {
+        background-color: #f3f3f3;
+      }
+      .too-low {
+        color: rgb(48, 138, 249);
+      }
+      .too-high {
+        color: rgb(249, 40, 40);
+      }
+      .normal {
+        color: rgb(40, 212, 40);
+      }
+    </style>
   </head>
   <body>
     {{embed}}

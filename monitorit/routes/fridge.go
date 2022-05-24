@@ -52,6 +52,7 @@ type temperatureResponse struct {
 	ID        string  `json:"id"`
 	Value     float64 `json:"value"`
 	CreatedAt string  `json:"createdAt"`
+	Status    string  `json:"-"`
 }
 
 func (fh *FridgeHandler) Get(ctx context.Context, c *fiber.Ctx) (any, error) {
@@ -87,6 +88,7 @@ func (fh *FridgeHandler) Get(ctx context.Context, c *fiber.Ctx) (any, error) {
 				ID:        strconv.FormatInt(t.ID, 10),
 				Value:     t.Value,
 				CreatedAt: t.CreatedAt.Local().Format(viewTimeFormat),
+				Status:    t.Status(fridge.MinTemp, fridge.MaxTemp),
 			})
 		}
 	}
