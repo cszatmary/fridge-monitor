@@ -1,0 +1,28 @@
+version: 2.1
+
+jobs:
+  build-push:
+    docker:
+      - image: cimg/go:1.18
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 19.03.13
+      - run:
+          name: Docker login
+          command: echo "$DOCKERHUB_PASSWORD" | docker login --username $DOCKERHUB_USER --password-stdin
+      - run:
+          name: Build monitorit image
+          command: docker build --build-arg "GITSHA=$(git rev-parse HEAD)" -t cszatmary/monitorit monitorit
+      - run:
+          name: Push monitorit image
+          command: docker push cszatmary/monitorit
+
+workflows:
+  build-push:
+    jobs:
+      - build-push:
+          context: cszatmary-global
+          filters:
+            branches:
+              only: main
