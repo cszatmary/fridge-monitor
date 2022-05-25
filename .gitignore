@@ -28,3 +28,4 @@ coverage/
 
 senseit/senseit
 monitorit/monitorit.db
+.env

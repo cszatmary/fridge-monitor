@@ -49,7 +49,10 @@ func requireTxn(ctx context.Context) *sql.Tx {
 	return txn
 }
 
-const sqliteTimeFormat = "2006-01-02 15:04:05"
+const (
+	TimeFormatPretty = "Monday, January 2 2006 15:04:05 MST"
+	timeFormatSQLite = "2006-01-02 15:04:05"
+)
 
 // Time is a time.Time that implements the sql.Scanner interface and
 // can be used as a scan destination for datetimes stored in sqlite text columns.
@@ -60,7 +63,7 @@ func (t *Time) Scan(value any) error {
 	if !ok {
 		return fmt.Errorf("unsupported source type for Time: %T", value)
 	}
-	parsed, err := time.Parse(sqliteTimeFormat, s)
+	parsed, err := time.Parse(timeFormatSQLite, s)
 	if err != nil {
 		return fmt.Errorf("failed to parse scanned value as a Time: %s: %w", s, err)
 	}
@@ -69,5 +72,5 @@ func (t *Time) Scan(value any) error {
 }
 
 func (t Time) Value() (driver.Value, error) {
-	return t.Format(sqliteTimeFormat), nil
+	return t.Format(timeFormatSQLite), nil
 }

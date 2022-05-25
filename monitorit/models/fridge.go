@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/cszatmary/fridge-monitor/monitorit/lib/apierror"
 )
@@ -124,6 +125,63 @@ func (fm *FridgeManager) InsertOne(ctx context.Context, fridge Fridge) (Fridge, 
 			err,
 			apierror.CodeDatabase,
 			"failed to insert fridge row",
+			op,
+		)
+	}
+	return newFridge, nil
+}
+
+type PartialFridge struct {
+	Name        string
+	Description *string
+	MinTemp     *float64
+	MaxTemp     *float64
+}
+
+func (fm *FridgeManager) UpdateOne(ctx context.Context, id int64, fridge PartialFridge) (Fridge, error) {
+	const op = apierror.Op("models.FridgeManager.UpdateOne")
+	var query strings.Builder
+	var args []any
+	query.WriteString("UPDATE fridges SET ")
+	if fridge.Name != "" {
+		query.WriteString("name = ?")
+		args = append(args, fridge.Name)
+	}
+	if fridge.Description != nil {
+		query.WriteString("description = ?")
+		args = append(args, fridge.Description)
+	}
+	if fridge.MinTemp != nil {
+		query.WriteString("min_temp = ?")
+		args = append(args, fridge.MinTemp)
+	}
+	if fridge.MaxTemp != nil {
+		query.WriteString("max_temp = ?")
+		args = append(args, fridge.MaxTemp)
+	}
+
+	// If nothing to update just fetch and return the fridge
+	if len(args) == 0 {
+		return fm.FindOneByID(ctx, id)
+	}
+	query.WriteString(" WHERE id = ? RETURNING id, name, description, min_temp, max_temp")
+	args = append(args, id)
+
+	var newFridge Fridge
+	err := requireTxn(ctx).
+		QueryRowContext(ctx, query.String(), args...).
+		Scan(
+			&newFridge.ID,
+			&newFridge.Name,
+			&newFridge.Description,
+			&newFridge.MinTemp,
+			&newFridge.MaxTemp,
+		)
+	if err != nil {
+		return newFridge, apierror.Wrap(
+			err,
+			apierror.CodeDatabase,
+			"failed to update fridge row",
 			op,
 		)
 	}

@@ -25,7 +25,13 @@ type errorResponse struct {
 	Message string `json:"message"`
 }
 
-func SetupApp(db *sql.DB) *fiber.App {
+type SetupDependencies struct {
+	DB                 *sql.DB
+	FridgeManager      *models.FridgeManager
+	TemperatureManager *models.TemperatureManager
+}
+
+func SetupApp(deps SetupDependencies) *fiber.App {
 	app := fiber.New(fiber.Config{
 		Views:       html.New("./resources/views", ".gohtml"),
 		ViewsLayout: "layouts/page",
@@ -74,9 +80,7 @@ func SetupApp(db *sql.DB) *fiber.App {
 	app.Use(logger.New())
 	app.Use(recovermw.New())
 
-	fm := models.NewFridgeManager(db)
-	tm := models.NewTemperatureManager(db)
-	fh := NewFridgeHandler(fm, tm)
+	fh := NewFridgeHandler(deps.FridgeManager, deps.TemperatureManager)
 
 	app.Get("/ping", func(c *fiber.Ctx) error {
 		return c.SendString("MonitorIt OK: " + gitsha)
@@ -86,9 +90,10 @@ func SetupApp(db *sql.DB) *fiber.App {
 		return c.Redirect("/fridges")
 	})
 	app.Get("/fridges", createHandler("fridges/index", fh.List))
+	app.Post("/fridges", createHandler("", withTransaction(deps.DB, fh.Create)))
 	app.Get("/fridges/:fridgeID", createHandler("fridges/show", fh.Get))
-	app.Post("/fridges", createHandler("", withTransaction(db, fh.Create)))
-	app.Post("/fridges/:fridgeID/temperatures", createHandler("", withTransaction(db, fh.CreateTemperature)))
+	app.Patch("/fridges/:fridgeID", createHandler("", withTransaction(deps.DB, fh.Update)))
+	app.Post("/fridges/:fridgeID/temperatures", createHandler("", withTransaction(deps.DB, fh.CreateTemperature)))
 	return app
 }
 

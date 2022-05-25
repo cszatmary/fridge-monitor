@@ -3,8 +3,11 @@ package main
 import (
 	"database/sql"
 	"log"
-	"os"
 
+	"github.com/cszatmary/fridge-monitor/monitorit/config"
+	"github.com/cszatmary/fridge-monitor/monitorit/jobs"
+	"github.com/cszatmary/fridge-monitor/monitorit/lib/sms"
+	"github.com/cszatmary/fridge-monitor/monitorit/models"
 	"github.com/cszatmary/fridge-monitor/monitorit/routes"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -13,11 +16,13 @@ import (
 )
 
 func main() {
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		log.Fatal("DB_PATH env var is not set")
+	cfg, err := config.Read()
+	if err != nil {
+		log.Fatalf("Failed to read config: %v", err)
 	}
-	db, err := sql.Open("sqlite3", dbPath)
+
+	// Setup the SQLite DB
+	db, err := sql.Open("sqlite3", cfg.DBPath)
 	if err != nil {
 		log.Fatalf("Failed to create db instance: %v", err)
 	}
@@ -38,6 +43,27 @@ func main() {
 		log.Fatalf("Failed to apply db migrations: %v", err)
 	}
 
-	app := routes.SetupApp(db)
-	log.Fatal(app.Listen(":8080"))
+	// Initialize dependencies
+	fm := models.NewFridgeManager(db)
+	tm := models.NewTemperatureManager(db)
+	smsClient := sms.NewClient(cfg.TwilioAccountSID, cfg.TwilioAuthToken, cfg.TwilioPhoneNumber)
+
+	// Setup job runner
+	s := jobs.Setup(jobs.SetupDependencies{
+		AlertJobCron:        cfg.AlertJobCron,
+		FridgeManager:       fm,
+		TemperatureManager:  tm,
+		SMSClient:           smsClient,
+		AlertJobPhoneNumber: cfg.AlertJobPhoneNumber,
+	})
+	s.StartAsync()
+	log.Print("Job runner started")
+
+	// Setup HTTP server
+	app := routes.SetupApp(routes.SetupDependencies{
+		DB:                 db,
+		FridgeManager:      fm,
+		TemperatureManager: tm,
+	})
+	log.Fatal(app.Listen(":" + cfg.HTTPPort))
 }

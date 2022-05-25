@@ -1,5 +1,7 @@
 <h1>{{.Name}}</h1>
 <h2>Last 5 Temperatures</h2>
+<p>Minimum Safe Temperature: {{.MinTemp}}°C</p>
+<p>Maximum Safe Temperature: {{.MaxTemp}}°C</p>
 <table class="styled-table">
   <tr>
     <th>Temperature</th>
@@ -11,9 +13,9 @@
       <td>{{.Value}}°C</td>
       <td>{{.CreatedAt}}</td>
       <td>
-        {{if eq .Status "tooLow"}}
+        {{if eq .Status "too_low"}}
           <span class="too-low">Too Low</span>
-        {{else if eq .Status "tooHigh"}}
+        {{else if eq .Status "too_high"}}
           <span class="too-high">Too High</span>
         {{else}}
           <span class="normal">Normal</span>

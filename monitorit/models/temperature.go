@@ -14,13 +14,28 @@ type Temperature struct {
 	CreatedAt Time
 }
 
+type TemperatureStatus uint8
+
 const (
-	StatusNormal  = "normal"
-	StatusTooLow  = "tooLow"
-	StatusTooHigh = "tooHigh"
+	StatusNormal TemperatureStatus = iota
+	StatusTooLow
+	StatusTooHigh
 )
 
-func (t Temperature) Status(minTemp, maxTemp float64) string {
+func (ts TemperatureStatus) String() string {
+	switch ts {
+	case StatusNormal:
+		return "normal"
+	case StatusTooLow:
+		return "too_low"
+	case StatusTooHigh:
+		return "too_high"
+	default:
+		panic("impossible: unknown TemperatureStatus")
+	}
+}
+
+func (t Temperature) Status(minTemp, maxTemp float64) TemperatureStatus {
 	switch {
 	case t.Value < minTemp:
 		return StatusTooLow
