@@ -19,11 +19,12 @@ func NewFridgeHandler(fm *models.FridgeManager, tm *models.TemperatureManager) *
 }
 
 type fridgeResponse struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	MinTemp     float64 `json:"minTemp"`
-	MaxTemp     float64 `json:"maxTemp"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	Description   string  `json:"description"`
+	MinTemp       float64 `json:"minTemp"`
+	MaxTemp       float64 `json:"maxTemp"`
+	AlertsEnabled bool    `json:"alertsEnabled"`
 }
 
 func (fh *FridgeHandler) List(ctx context.Context, c *fiber.Ctx) (any, error) {
@@ -36,11 +37,12 @@ func (fh *FridgeHandler) List(ctx context.Context, c *fiber.Ctx) (any, error) {
 	}{Fridges: make([]fridgeResponse, len(fridges))}
 	for i, f := range fridges {
 		body.Fridges[i] = fridgeResponse{
-			ID:          strconv.FormatInt(f.ID, 10),
-			Name:        f.Name,
-			Description: f.Description,
-			MinTemp:     f.MinTemp,
-			MaxTemp:     f.MaxTemp,
+			ID:            strconv.FormatInt(f.ID, 10),
+			Name:          f.Name,
+			Description:   f.Description,
+			MinTemp:       f.MinTemp,
+			MaxTemp:       f.MaxTemp,
+			AlertsEnabled: f.AlertsEnabled,
 		}
 	}
 	return body, nil
@@ -68,11 +70,12 @@ func (fh *FridgeHandler) Get(ctx context.Context, c *fiber.Ctx) (any, error) {
 		Temperatures []temperatureResponse `json:"temperatures,omitempty"`
 	}{
 		fridgeResponse: fridgeResponse{
-			ID:          strconv.FormatInt(fridge.ID, 10),
-			Name:        fridge.Name,
-			Description: fridge.Description,
-			MinTemp:     fridge.MinTemp,
-			MaxTemp:     fridge.MaxTemp,
+			ID:            strconv.FormatInt(fridge.ID, 10),
+			Name:          fridge.Name,
+			Description:   fridge.Description,
+			MinTemp:       fridge.MinTemp,
+			MaxTemp:       fridge.MaxTemp,
+			AlertsEnabled: fridge.AlertsEnabled,
 		},
 	}
 	if isHTML(c) {
@@ -99,20 +102,22 @@ func (fh *FridgeHandler) Create(ctx context.Context, c *fiber.Ctx) (any, error) 
 		return nil, err
 	}
 	f, err := fh.fm.InsertOne(ctx, models.Fridge{
-		Name:        reqBody.Name,
-		Description: reqBody.Description,
-		MinTemp:     reqBody.MinTemp,
-		MaxTemp:     reqBody.MaxTemp,
+		Name:          reqBody.Name,
+		Description:   reqBody.Description,
+		MinTemp:       reqBody.MinTemp,
+		MaxTemp:       reqBody.MaxTemp,
+		AlertsEnabled: reqBody.AlertsEnabled,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return fridgeResponse{
-		ID:          strconv.FormatInt(f.ID, 10),
-		Name:        f.Name,
-		Description: f.Description,
-		MinTemp:     f.MinTemp,
-		MaxTemp:     f.MaxTemp,
+		ID:            strconv.FormatInt(f.ID, 10),
+		Name:          f.Name,
+		Description:   f.Description,
+		MinTemp:       f.MinTemp,
+		MaxTemp:       f.MaxTemp,
+		AlertsEnabled: f.AlertsEnabled,
 	}, nil
 }
 
@@ -122,30 +127,33 @@ func (fh *FridgeHandler) Update(ctx context.Context, c *fiber.Ctx) (any, error) 
 		return nil, err
 	}
 	var reqBody struct {
-		Name        string   `json:"name"`
-		Description *string  `json:"description"`
-		MinTemp     *float64 `json:"minTemp"`
-		MaxTemp     *float64 `json:"maxTemp"`
+		Name          string   `json:"name"`
+		Description   *string  `json:"description"`
+		MinTemp       *float64 `json:"minTemp"`
+		MaxTemp       *float64 `json:"maxTemp"`
+		AlertsEnabled *bool    `json:"alertsEnabled"`
 	}
 	if err := c.BodyParser(&reqBody); err != nil {
 		return nil, err
 	}
 
 	f, err := fh.fm.UpdateOne(ctx, id, models.PartialFridge{
-		Name:        reqBody.Name,
-		Description: reqBody.Description,
-		MinTemp:     reqBody.MinTemp,
-		MaxTemp:     reqBody.MaxTemp,
+		Name:          reqBody.Name,
+		Description:   reqBody.Description,
+		MinTemp:       reqBody.MinTemp,
+		MaxTemp:       reqBody.MaxTemp,
+		AlertsEnabled: reqBody.AlertsEnabled,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return fridgeResponse{
-		ID:          strconv.FormatInt(f.ID, 10),
-		Name:        f.Name,
-		Description: f.Description,
-		MinTemp:     f.MinTemp,
-		MaxTemp:     f.MaxTemp,
+		ID:            strconv.FormatInt(f.ID, 10),
+		Name:          f.Name,
+		Description:   f.Description,
+		MinTemp:       f.MinTemp,
+		MaxTemp:       f.MaxTemp,
+		AlertsEnabled: f.AlertsEnabled,
 	}, nil
 }
 

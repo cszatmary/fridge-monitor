@@ -11,11 +11,12 @@ import (
 )
 
 type Fridge struct {
-	ID          int64
-	Name        string
-	Description string
-	MinTemp     float64
-	MaxTemp     float64
+	ID            int64
+	Name          string
+	Description   string
+	MinTemp       float64
+	MaxTemp       float64
+	AlertsEnabled bool
 }
 
 type FridgeManager struct {
@@ -29,7 +30,7 @@ func NewFridgeManager(db *sql.DB) *FridgeManager {
 func (fm *FridgeManager) FindAll(ctx context.Context) ([]Fridge, error) {
 	const op = apierror.Op("models.FridgeManager.FindAll")
 	r := resolveRunner(ctx, fm.db)
-	rows, err := r.QueryContext(ctx, `SELECT id, name, description, min_temp, max_temp FROM fridges`)
+	rows, err := r.QueryContext(ctx, `SELECT id, name, description, min_temp, max_temp, alerts_enabled FROM fridges`)
 	if err != nil {
 		return nil, apierror.Wrap(
 			err,
@@ -48,6 +49,7 @@ func (fm *FridgeManager) FindAll(ctx context.Context) ([]Fridge, error) {
 			&f.Description,
 			&f.MinTemp,
 			&f.MaxTemp,
+			&f.AlertsEnabled,
 		)
 		if err != nil {
 			return nil, apierror.Wrap(
@@ -73,7 +75,7 @@ func (fm *FridgeManager) FindAll(ctx context.Context) ([]Fridge, error) {
 func (fm *FridgeManager) FindOneByID(ctx context.Context, id int64) (Fridge, error) {
 	const op = apierror.Op("models.FridgeManager.FindOneByID")
 	r := resolveRunner(ctx, fm.db)
-	row := r.QueryRowContext(ctx, `SELECT id, name, description, min_temp, max_temp FROM fridges WHERE id = ?`, id)
+	row := r.QueryRowContext(ctx, `SELECT id, name, description, min_temp, max_temp, alerts_enabled FROM fridges WHERE id = ?`, id)
 
 	var f Fridge
 	err := row.Scan(
@@ -82,6 +84,7 @@ func (fm *FridgeManager) FindOneByID(ctx context.Context, id int64) (Fridge, err
 		&f.Description,
 		&f.MinTemp,
 		&f.MaxTemp,
+		&f.AlertsEnabled,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return f, apierror.New(
@@ -106,12 +109,13 @@ func (fm *FridgeManager) InsertOne(ctx context.Context, fridge Fridge) (Fridge, 
 	err := requireTxn(ctx).
 		QueryRowContext(
 			ctx,
-			`INSERT INTO fridges(name, description, min_temp, max_temp) VALUES(?, ?, ?, ?)
-				RETURNING id, name, description, min_temp, max_temp`,
+			`INSERT INTO fridges(name, description, min_temp, max_temp, alerts_enabled) VALUES(?, ?, ?, ?, ?)
+				RETURNING id, name, description, min_temp, max_temp, alerts_enabled`,
 			fridge.Name,
 			fridge.Description,
 			fridge.MinTemp,
 			fridge.MaxTemp,
+			fridge.AlertsEnabled,
 		).
 		Scan(
 			&newFridge.ID,
@@ -119,6 +123,7 @@ func (fm *FridgeManager) InsertOne(ctx context.Context, fridge Fridge) (Fridge, 
 			&newFridge.Description,
 			&newFridge.MinTemp,
 			&newFridge.MaxTemp,
+			&newFridge.AlertsEnabled,
 		)
 	if err != nil {
 		return newFridge, apierror.Wrap(
@@ -132,39 +137,52 @@ func (fm *FridgeManager) InsertOne(ctx context.Context, fridge Fridge) (Fridge, 
 }
 
 type PartialFridge struct {
-	Name        string
-	Description *string
-	MinTemp     *float64
-	MaxTemp     *float64
+	Name          string
+	Description   *string
+	MinTemp       *float64
+	MaxTemp       *float64
+	AlertsEnabled *bool
 }
 
 func (fm *FridgeManager) UpdateOne(ctx context.Context, id int64, fridge PartialFridge) (Fridge, error) {
 	const op = apierror.Op("models.FridgeManager.UpdateOne")
-	var query strings.Builder
+	var fields []string
 	var args []any
-	query.WriteString("UPDATE fridges SET ")
 	if fridge.Name != "" {
-		query.WriteString("name = ?")
+		fields = append(fields, "name")
 		args = append(args, fridge.Name)
 	}
 	if fridge.Description != nil {
-		query.WriteString("description = ?")
-		args = append(args, fridge.Description)
+		fields = append(fields, "description")
+		args = append(args, *fridge.Description)
 	}
 	if fridge.MinTemp != nil {
-		query.WriteString("min_temp = ?")
-		args = append(args, fridge.MinTemp)
+		fields = append(fields, "min_temp")
+		args = append(args, *fridge.MinTemp)
 	}
 	if fridge.MaxTemp != nil {
-		query.WriteString("max_temp = ?")
-		args = append(args, fridge.MaxTemp)
+		fields = append(fields, "max_temp")
+		args = append(args, *fridge.MaxTemp)
 	}
-
+	if fridge.AlertsEnabled != nil {
+		fields = append(fields, "alerts_enabled")
+		args = append(args, *fridge.AlertsEnabled)
+	}
 	// If nothing to update just fetch and return the fridge
 	if len(args) == 0 {
 		return fm.FindOneByID(ctx, id)
 	}
-	query.WriteString(" WHERE id = ? RETURNING id, name, description, min_temp, max_temp")
+
+	var query strings.Builder
+	query.WriteString("UPDATE fridges SET ")
+	for i, field := range fields {
+		if i > 0 {
+			query.WriteString(", ")
+		}
+		query.WriteString(field)
+		query.WriteString(" = ?")
+	}
+	query.WriteString(" WHERE id = ? RETURNING id, name, description, min_temp, max_temp, alerts_enabled")
 	args = append(args, id)
 
 	var newFridge Fridge
@@ -176,6 +194,7 @@ func (fm *FridgeManager) UpdateOne(ctx context.Context, id int64, fridge Partial
 			&newFridge.Description,
 			&newFridge.MinTemp,
 			&newFridge.MaxTemp,
+			&newFridge.AlertsEnabled,
 		)
 	if err != nil {
 		return newFridge, apierror.Wrap(

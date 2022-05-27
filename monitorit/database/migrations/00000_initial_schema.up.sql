@@ -3,7 +3,8 @@ CREATE TABLE fridges(
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL,
     min_temp REAL NOT NULL,
-    max_temp REAL NOT NULL
+    max_temp REAL NOT NULL,
+    alerts_enabled INTEGER NOT NULL DEFAULT 0
 ) STRICT;
 
 CREATE TABLE temperatures(

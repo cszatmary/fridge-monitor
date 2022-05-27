@@ -33,6 +33,9 @@ func (aj *AlertJob) Run() {
 		return
 	}
 	for _, f := range fridges {
+		if !f.AlertsEnabled {
+			continue
+		}
 		if err := aj.checkFridge(ctx, f); err != nil {
 			aj.alert("Failed to check fridge %s: %v", f.Name, err)
 		}
@@ -62,6 +65,7 @@ func (aj *AlertJob) checkFridge(ctx context.Context, fridge models.Fridge) error
 			timeStr = lastReceived.Format(models.TimeFormatPretty)
 		}
 		aj.alert("Temperature not received from fridge %q since %s", fridge.Name, timeStr)
+		return nil
 	}
 
 	// Now check to make sure that the last n temperatures have been within the safe range.

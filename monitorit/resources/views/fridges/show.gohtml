@@ -1,7 +1,15 @@
 <h1>{{.Name}}</h1>
-<h2>Last 5 Temperatures</h2>
 <p>Minimum Safe Temperature: {{.MinTemp}}°C</p>
 <p>Maximum Safe Temperature: {{.MaxTemp}}°C</p>
+<p>
+  Alerts
+  {{if .AlertsEnabled}}
+    <span class="normal">Enabled</span>
+  {{else}}
+    <span class="too-high">Disabled</span>
+  {{end}}
+</p>
+<h2>Last 5 Temperatures</h2>
 <table class="styled-table">
   <tr>
     <th>Temperature</th>
