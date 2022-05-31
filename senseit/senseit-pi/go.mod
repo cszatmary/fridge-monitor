@@ -1,4 +1,4 @@
-module github.com/cszatmary/fridge-monitor/senseit
+module github.com/cszatmary/fridge-monitor/senseit/senseit-pi
 
 go 1.18
 
