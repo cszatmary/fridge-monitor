@@ -13,12 +13,14 @@
 <table class="styled-table">
   <tr>
     <th>Temperature</th>
+    <th>Humidity</th>
     <th>Time</th>
     <th>Status</th>
   </tr>
   {{range .Temperatures}}
     <tr>
       <td>{{.Value}}°C</td>
+      <td>{{.Humidity}}%</td>
       <td>{{.CreatedAt}}</td>
       <td>
         {{if eq .Status "too_low"}}

@@ -10,6 +10,7 @@ CREATE TABLE fridges(
 CREATE TABLE temperatures(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     value REAL NOT NULL,
+    humidity REAL NOT NULL,
     fridge_id INTEGER NOT NULL REFERENCES fridges(id),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 ) STRICT;

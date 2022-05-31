@@ -51,6 +51,7 @@ func (fh *FridgeHandler) List(ctx context.Context, c *fiber.Ctx) (any, error) {
 type temperatureResponse struct {
 	ID        string  `json:"id"`
 	Value     float64 `json:"value"`
+	Humidity  float64 `json:"humidity"`
 	CreatedAt string  `json:"createdAt"`
 	Status    string  `json:"-"`
 }
@@ -88,6 +89,7 @@ func (fh *FridgeHandler) Get(ctx context.Context, c *fiber.Ctx) (any, error) {
 			body.Temperatures = append(body.Temperatures, temperatureResponse{
 				ID:        strconv.FormatInt(t.ID, 10),
 				Value:     t.Value,
+				Humidity:  t.Humidity,
 				CreatedAt: t.CreatedAt.Local().Format(models.TimeFormatPretty),
 				Status:    t.Status(fridge.MinTemp, fridge.MaxTemp).String(),
 			})
@@ -163,18 +165,20 @@ func (fh *FridgeHandler) CreateTemperature(ctx context.Context, c *fiber.Ctx) (a
 		return nil, err
 	}
 	var reqBody struct {
-		Value float64 `json:"value"`
+		Value    float64 `json:"value"`
+		Humidity float64 `json:"humidity"`
 	}
 	if err := c.BodyParser(&reqBody); err != nil {
 		return nil, err
 	}
-	temp, err := fh.tm.InsertOne(ctx, fridgeID, reqBody.Value)
+	temp, err := fh.tm.InsertOne(ctx, fridgeID, reqBody.Value, reqBody.Humidity)
 	if err != nil {
 		return nil, err
 	}
 	return temperatureResponse{
 		ID:        strconv.FormatInt(temp.ID, 10),
 		Value:     temp.Value,
+		Humidity:  temp.Humidity,
 		CreatedAt: temp.CreatedAt.Format(time.RFC3339),
 	}, nil
 }

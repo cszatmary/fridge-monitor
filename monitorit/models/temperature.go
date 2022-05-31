@@ -10,6 +10,7 @@ import (
 type Temperature struct {
 	ID        int64
 	Value     float64
+	Humidity  float64
 	FridgeID  int64
 	CreatedAt Time
 }
@@ -59,7 +60,7 @@ func (tm *TemperatureManager) FindMostRecentByFridgeID(ctx context.Context, frid
 	rows, err := resolveRunner(ctx, tm.db).
 		QueryContext(
 			ctx,
-			`SELECT id, value, fridge_id, created_at FROM temperatures WHERE fridge_id = ? ORDER BY created_at DESC LIMIT ?`,
+			`SELECT id, value, humidity, fridge_id, created_at FROM temperatures WHERE fridge_id = ? ORDER BY created_at DESC LIMIT ?`,
 			fridgeID,
 			limit,
 		)
@@ -78,6 +79,7 @@ func (tm *TemperatureManager) FindMostRecentByFridgeID(ctx context.Context, frid
 		err := rows.Scan(
 			&t.ID,
 			&t.Value,
+			&t.Humidity,
 			&t.FridgeID,
 			&t.CreatedAt,
 		)
@@ -102,19 +104,21 @@ func (tm *TemperatureManager) FindMostRecentByFridgeID(ctx context.Context, frid
 	return temperatures, nil
 }
 
-func (tm *TemperatureManager) InsertOne(ctx context.Context, fridgeID int64, value float64) (Temperature, error) {
+func (tm *TemperatureManager) InsertOne(ctx context.Context, fridgeID int64, value, humidity float64) (Temperature, error) {
 	const op = apierror.Op("models.TemperatureManager.InsertOne")
 	var newTemp Temperature
 	err := requireTxn(ctx).
 		QueryRowContext(
 			ctx,
-			`INSERT INTO temperatures(value, fridge_id) VALUES(?, ?) RETURNING id, value, fridge_id, created_at`,
+			`INSERT INTO temperatures(value, humidity, fridge_id) VALUES(?, ?, ?) RETURNING id, value, humidity, fridge_id, created_at`,
 			value,
+			humidity,
 			fridgeID,
 		).
 		Scan(
 			&newTemp.ID,
 			&newTemp.Value,
+			&newTemp.Humidity,
 			&newTemp.FridgeID,
 			&newTemp.CreatedAt,
 		)
