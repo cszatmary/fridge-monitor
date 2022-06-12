@@ -1,7 +1,6 @@
+#include "display.hpp"
 #include "secrets.h"
 #include <Adafruit_BME280.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include <Adafruit_Sensor.h>
 #include <Arduino.h>
 #include <HTTPClient.h>
@@ -14,41 +13,9 @@
 
 unsigned long lastTimeUpdate = 0;
 unsigned long lastTimePost = 0;
-TwoWire screenWire = TwoWire(0);
-TwoWire sensorWire = TwoWire(1);
-Adafruit_SSD1306 screen =
-    Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &screenWire);
+bool retryRequest = false;
+Display display;
 Adafruit_BME280 sensor;
-
-// scani2c is a small helper function to find all available i2c devices and
-// their address on the i2c bus used by wire.
-void scani2c(TwoWire &wire) {
-    Serial.println("Scanning...");
-    int numDevices = 0;
-    for (byte address = 1; address < 127; address++) {
-        wire.beginTransmission(address);
-        byte error = wire.endTransmission();
-        if (error == 0) {
-            Serial.print("I2C device found at address 0x");
-            if (address < 16) {
-                Serial.print("0");
-            }
-            Serial.println(address, 16);
-            numDevices++;
-        } else if (error == 4) {
-            Serial.print("Unknow error at address 0x");
-            if (address < 16) {
-                Serial.print("0");
-            }
-            Serial.println(address, 16);
-        }
-    }
-    if (numDevices == 0) {
-        Serial.println("No I2C devices found\n");
-        return;
-    }
-    Serial.println("Done scanning for I2C devices\n");
-}
 
 void handleWiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
     Serial.println("Connected to WiFi network " WIFI_SSID " successfully!");
@@ -67,44 +34,68 @@ void handleWiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 void setup() {
     Serial.begin(115200);
+    // Setup the screen. Do this first so that if any subsequent steps fail
+    // or any errors occur we can display it on the screen.
+    if (!Wire.begin(SCREEN_I2C_SDA, SCREEN_I2C_SCL)) {
+        Serial.println();
+        // Nothing we can really do here.
+        while (true) {
+            Serial.println("Screen wire initialization failed");
+            delay(10000);
+        }
+    }
+    if (!display.begin(&Wire, SCREEN_I2C_ADDRESS, SCREEN_WIDTH,
+                       SCREEN_HEIGHT)) {
+        // Nothing we can really do here.
+        while (true) {
+            Serial.println("Screen setup failed");
+            delay(10000);
+        }
+    }
+    display.minSafeTemp = MIN_SAFE_TEMP;
+    display.maxSafeTemp = MAX_SAFE_TEMP;
+    display.printToSerial = true;
+
+    if (!Wire1.begin(SENSOR_I2C_SDA, SENSOR_I2C_SCL, 100000U)) {
+        display.setError(
+            {.title = "Setup failed", .message = "Sensor I2C setup failed"});
+        display.render();
+        while (true) {
+            delay(10000);
+        }
+    }
+    if (!sensor.begin(SENSOR_I2C_ADDRESS, &Wire1)) {
+        display.setError({.title = "Setup failed",
+                          .message = "BME280 sensor initialization failed"});
+        display.render();
+        while (true) {
+            delay(10000);
+        }
+    }
 
     // Setup WiFi on boot.
     // Register event handlers so that it automatically reconnects if the
     // connection is lost.
+    display.setInfo(
+        {.title = "Performing setup", .message = "Connecting to WiFi"});
     WiFi.onEvent(handleWiFiStationConnected,
                  WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
     WiFi.onEvent(handleWiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
     WiFi.onEvent(handleWiFiStationDisconnected,
                  WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) {
+    // Wait a bit to connect, if still no connection then give up and move on.
+    for (int i = 0; i < 5; i++) {
+        if (WiFi.status() == WL_CONNECTED) {
+            break;
+        }
         delay(500);
-        Serial.println("Connecting to WiFi...");
     }
 
-    // Setup I2C devices.
-    screenWire.begin(SCREEN_I2C_SDA, SCREEN_I2C_SCL);
-    sensorWire.begin(SENSOR_I2C_SDA, SENSOR_I2C_SCL, 100000U);
-    if (!screen.begin(SSD1306_SWITCHCAPVCC, SCREEN_I2C_ADDRESS)) {
-        Serial.println("SSD1306 initialization failed");
-        // Nothing we can really do here.
-        while (true) {
-            delay(10000);
-        }
-    }
-    screen.clearDisplay();
-    if (!sensor.begin(SENSOR_I2C_ADDRESS, &sensorWire)) {
-        // Since the screen was initialized we can use it to display an error.
-        screen.setTextColor(WHITE);
-        screen.setTextSize(1);
-        screen.setCursor(0, 0);
-        screen.print("Error: BME280 sensor initialization failed");
-        screen.display();
-        Serial.println("BME280 sensor initialization failed");
-        while (true) {
-            delay(10000);
-        }
-    }
+    display.clear();
+    // Display the temp immediately before beginning the periodic update.
+    display.setTemperature({sensor.readTemperature(), sensor.readHumidity()});
+    display.render();
 }
 
 void loop() {
@@ -112,41 +103,11 @@ void loop() {
         return;
     }
     lastTimeUpdate = millis();
+    Temperature temp = {sensor.readTemperature(), sensor.readHumidity()};
+    display.setTemperature(temp);
+    display.render();
 
-    // Uncomment these if you need to locate the i2c addresses.
-    // scani2c(screenWire);
-    // scani2c(sensorWire);
-
-    // Always get the temperature and humidity and display it on the screen.
-    float temp = sensor.readTemperature();
-    float humidity = sensor.readHumidity();
-    Serial.printf("Temperature = %.2f\nHumidity %.2f%\n", temp, humidity);
-    screen.clearDisplay();
-    screen.setTextColor(WHITE);
-    // Display temperature
-    screen.setTextSize(1);
-    screen.setCursor(0, 0);
-    screen.print("Temperature: ");
-    screen.setTextSize(2);
-    screen.setCursor(0, 10);
-    screen.print(temp);
-    screen.print(" ");
-    screen.setTextSize(1);
-    screen.cp437(true);
-    screen.write(167); // Degrees symbol
-    screen.setTextSize(2);
-    screen.print("C");
-    // Display humidity
-    screen.setTextSize(1);
-    screen.setCursor(0, 35);
-    screen.print("Humidity: ");
-    screen.setTextSize(2);
-    screen.setCursor(0, 45);
-    screen.print(humidity);
-    screen.print(" %");
-    screen.display();
-
-    if ((millis() - lastTimePost) < POST_INTERVAL_MS) {
+    if (!retryRequest || (millis() - lastTimePost) < POST_INTERVAL_MS) {
         return;
     }
     lastTimePost = millis();
@@ -159,15 +120,35 @@ void loop() {
     // This is a little hacky but the JSON body is so simple that it seems
     // overkill to add a JSON library as a dependency just for this.
     // This works well enough.
-    String requestData = "{\"value\":" + String(temp, 2) +
-                         ",\"humidity\":" + String(humidity, 2) + "}";
+    String requestData;
+    requestData.reserve(40);
+    requestData += "{\"value\":";
+    requestData += String(temp.value, 2);
+    requestData += ",\"humidity\":";
+    requestData += String(temp.humidity, 2);
+    requestData += "}";
     int status = http.POST(requestData);
     if (status > 0) {
         String payload = http.getString();
-        Serial.printf("HTTP Response code: %d\nBody: %s\n", status,
-                      payload.c_str());
+        if (status >= 400) {
+            String title;
+            title.reserve(9);
+            title += "HTTP ";
+            title += String(status);
+            display.setError({title, payload});
+            display.render();
+            retryRequest = true;
+        } else {
+            display.clearError();
+            Serial.printf("HTTP Response code: %d\nBody: %s\n", status,
+                          payload.c_str());
+            retryRequest = false;
+        }
     } else {
-        Serial.printf("HTTP error: %s\n", http.errorToString(status).c_str());
+        display.setError({.title = "HTTP req failed",
+                          .message = http.errorToString(status)});
+        display.render();
+        retryRequest = true;
     }
     http.end();
 }
