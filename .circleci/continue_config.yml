@@ -1,0 +1,47 @@
+version: 2.1
+
+parameters:
+  build-monitorit:
+    type: boolean
+    default: false
+
+jobs:
+  build-push:
+    docker:
+      - image: cimg/go:1.18
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.14
+      - run:
+          name: Docker login
+          command: echo "$DOCKERHUB_PASSWORD" | docker login --username $DOCKERHUB_USER --password-stdin
+      - run:
+          name: Build monitorit image
+          command: docker build --build-arg "GITSHA=$(git rev-parse HEAD)" -t cszatmary/monitorit monitorit
+      - run:
+          name: Push monitorit image
+          command: docker push cszatmary/monitorit
+  eof:
+    docker:
+      - image: cimg/base:2022.06
+    steps:
+      - run: echo DONE
+
+workflows:
+  build-push:
+    when: << pipeline.parameters.build-monitorit >>
+    jobs:
+      - build-push:
+          context: cszatmary-global
+          filters:
+            branches:
+              only: main
+      - eof:
+          requires:
+            - build-push
+  no-op:
+    when:
+      not: << pipeline.parameters.build-monitorit >>
+    jobs:
+      - eof
